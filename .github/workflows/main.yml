@@ -33,28 +33,31 @@ jobs:
            pip install rich
            touch .env
            echo PATSECRET=${{ secrets.PATSECRET }} >> .env
-      - name: Start Tailscale 
+      - name: Start Tailscale
         shell: pwsh
         run: |
+          $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
+          $cpu = $processor.Name
+          $baseSpeedGHz = [math]::Round($processor.MaxClockSpeed / 1000, 2)  # MHz -> GHz
+          $speedTag = ("{0}" -f $baseSpeedGHz) -replace '\.', 'p'             # 3.2 -> 3p2
 
-          $cpu = (Get-CimInstance Win32_Processor).Name
-          $cpuspeed = (Get-CimInstance Win32_Processor)
-          $baseSpeedGHz = [math]::Round($cpu.MaxClockSpeed / 1000, 2) # Convert MHz to GHz
-          
           Write-Host "Processor: $cpu"
           if ($cpu -match "Intel") {
-          $hostname = "cat-Intel-$env:GITHUB_RUN_ID"
+            $hostname = "cat-Intel-${speedTag}GHz-$env:GITHUB_RUN_ID"
           } elseif ($cpu -match "AMD") {
-          $hostname = "cat-Amd-$env:GITHUB_RUN_ID"
+            $hostname = "cat-Amd-${speedTag}GHz-$env:GITHUB_RUN_ID"
           } else {
-          $firstName = ($cpu -split '\s+')[0]
-          $hostname = "Speed-$baseSpeedGHz-cat-$firstName-$env:GITHUB_RUN_ID"
+            $firstName = ($cpu -split '\s+')[0]
+            $hostname = "Speed-${speedTag}GHz-cat-$firstName-$env:GITHUB_RUN_ID"
           }
           Write-Host "Hostname: $hostname"
           Write-Output ("Base Speed: {0} GHz" -f $baseSpeedGHz)
+
           & "C:\Program Files\Tailscale\tailscale.exe" up `
-          --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} `
-          --hostname="$hostname"
+            --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} `
+            --hostname="$hostname"
+
+
 
       - name: Keep Session Alive
         run: |
